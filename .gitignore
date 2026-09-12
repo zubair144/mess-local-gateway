@@ -1,0 +1,46 @@
+# Environment — keep .env.example tracked
+.env
+.env.local
+.env.*.local
+.env.development.local
+.env.production.local
+.env.test.local
+
+# Logs
+/logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+.vite
+base44/.app.jsonc
+
+# OS junk
+Thumbs.db
+Desktop.ini
+
+# Debug / coverage
+coverage
+*.pid
+.nyc_output
+
+.next/
