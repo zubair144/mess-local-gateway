@@ -40,6 +40,7 @@ function printStartupBanner(hardwareStatus) {
 ================================================
 
 Gateway API    : http://localhost:${config.gatewayPort}
+Dashboard      : http://localhost:${config.gatewayPort}/gateway
 SQLite         : ${sqliteLine}
 ZKTeco ADMS    : ${faceLine}
 QR Scanner     : ${qrLine}

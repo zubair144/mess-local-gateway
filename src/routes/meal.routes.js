@@ -1,10 +1,10 @@
-const { serveMeal } = require("../services/meal-service");
+const { processMealTransaction } = require("../services/transaction-service");
 const hardware = require("../hardware");
 const logger = require("../logger");
 
 function registerMealRoutes(app) {
   app.post("/api/meal/serve", (req, res) => {
-    const { identifier, method, deviceId } = req.body || {};
+    const { identifier, method, deviceId, timestamp } = req.body || {};
 
     if (!identifier) {
       return res.status(400).json({
@@ -13,17 +13,18 @@ function registerMealRoutes(app) {
       });
     }
 
-    if (!["qr", "face", "manual"].includes(method)) {
+    if (!["qr", "face", "manual", "manual-test"].includes(method)) {
       return res.status(400).json({
         success: false,
-        message: "method must be qr, face or manual.",
+        message: "method must be qr, face, manual, or manual-test.",
       });
     }
 
-    const result = serveMeal({
+    const result = processMealTransaction({
+      source: method,
       identifier,
-      method,
       deviceId,
+      timestamp,
     });
 
     if (!result.success) {
@@ -57,7 +58,7 @@ function registerMealRoutes(app) {
       );
 
       res.json({
-        success: true,
+        success: Boolean(result.mealResult && result.mealResult.success),
         printed: Boolean(result.printed),
         ...result,
       });
@@ -86,7 +87,7 @@ function registerMealRoutes(app) {
       });
 
       res.json({
-        success: true,
+        success: Boolean(result.mealResult && result.mealResult.success),
         printed: Boolean(result.printed),
         ...result,
       });

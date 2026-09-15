@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Executive Mess Local Gateway</title>
+    <link rel="stylesheet" href="/gateway/styles.css" />
+  </head>
+  <body>
+    <main class="page">
+      <header class="hero">
+        <p class="eyebrow">EXECUTIVE MESS</p>
+        <h1>LOCAL GATEWAY</h1>
+        <p class="subtitle" id="updatedAt">Loading dashboard...</p>
+      </header>
+
+      <section class="toolbar">
+        <button id="refreshBtn" type="button">Refresh</button>
+        <button id="testPrinterBtn" type="button">Test Printer</button>
+        <button id="syncNowBtn" type="button" disabled title="Cloud sync not configured">
+          Sync Now
+        </button>
+        <button id="retryFailedBtn" type="button" disabled title="Cloud sync not configured">
+          Retry Failed
+        </button>
+      </section>
+
+      <section class="cards" id="statusCards"></section>
+
+      <section class="stats" id="statsGrid"></section>
+
+      <section class="panel">
+        <h2>Last Event</h2>
+        <div id="lastEvent" class="last-event">No events yet.</div>
+      </section>
+
+      <section class="grid-two">
+        <article class="panel">
+          <h2>Recent Transactions</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Employee</th>
+                  <th>Meal</th>
+                  <th>Source</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="transactionsBody"></tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="panel">
+          <h2>Pending Sync</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Created</th>
+                  <th>Entity</th>
+                  <th>Action</th>
+                  <th>Status</th>
+                  <th>Attempts</th>
+                </tr>
+              </thead>
+              <tbody id="syncBody"></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <section class="panel">
+        <h2>Hardware Status</h2>
+        <pre id="hardwareStatus" class="hardware-pre"></pre>
+      </section>
+    </main>
+
+    <script src="/gateway/app.js"></script>
+  </body>
+</html>

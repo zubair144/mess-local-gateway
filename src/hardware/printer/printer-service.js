@@ -1,6 +1,8 @@
 const net = require("net");
 const config = require("../../config");
 const logger = require("../../logger");
+const { formatDisplayDateTime } = require("../../utils/time");
+const { formatRs, shortTxnId, displaySource } = require("../../utils/format");
 
 let lastStatus = {
   ready: false,
@@ -283,41 +285,59 @@ function printTestReceipt() {
 }
 
 function printMealReceipt(data) {
-  const employeeName = sanitizeZpl(data.employeeName || "-");
-  const employeeCode = sanitizeZpl(data.employeeCode || data.userId || "-");
-  const mealName = sanitizeZpl(data.mealName || "-");
-  const amount = sanitizeZpl(data.amount ?? "-");
-  const newBalance = sanitizeZpl(data.newBalance ?? "-");
+  const employeeName = sanitizeZpl(data.employeeName || "-", { maxLength: 40 });
+  const employeeCode = sanitizeZpl(
+    data.employeeCode || data.userId || "-",
+    { maxLength: 32 }
+  );
+  const mealName = sanitizeZpl(data.mealName || "-", { maxLength: 24 });
+  const amountText = sanitizeZpl(formatRs(data.amount));
+  const balanceText = sanitizeZpl(
+    `Balance: ${formatRs(data.balanceAfter ?? data.newBalance)}`
+  );
+  const sourceText = sanitizeZpl(displaySource(data.source));
   const dateTime = sanitizeZpl(
-    data.dateTime || new Date().toLocaleString()
+    formatDisplayDateTime(data.dateTime || new Date(), config.timezone)
+  );
+  const txn = sanitizeZpl(
+    `TXN: ${shortTxnId(data.localTransactionId || data.transactionId)}`
   );
 
   const zpl = `
 ^XA
 ^PW600
-^LL480
+^LL560
 
 ^CF0,35
 ^FO70,30^FDEXECUTIVE MESS^FS
 
-^CF0,23
-^FO70,85^FDMeal Receipt^FS
+^FO40,80^GB520,2,2^FS
 
-^FO40,125^GB520,2,2^FS
+^CF0,28
+^FO50,110^FD${employeeName}^FS
+
+^CF0,24
+^FO50,150^FD${employeeCode}^FS
+
+^CF0,28
+^FO50,200^FD${mealName}^FS
 
 ^CF0,26
-^FO50,155^FD${employeeName}^FS
+^FO50,240^FD${amountText}^FS
+
+^CF0,24
+^FO50,290^FD${balanceText}^FS
 
 ^CF0,22
-^FO50,200^FDCode: ${employeeCode}^FS
-^FO50,235^FDMeal: ${mealName}^FS
-^FO50,270^FDAmount: ${amount}^FS
-^FO50,305^FDBalance: ${newBalance}^FS
+^FO50,340^FD${sourceText}^FS
 
-^CF0,18
-^FO50,350^FD${dateTime}^FS
+^CF0,20
+^FO50,380^FD${dateTime}^FS
 
-^FO40,390^GB520,2,2^FS
+^CF0,20
+^FO50,420^FD${txn}^FS
+
+^FO40,470^GB520,2,2^FS
 
 ^XZ
 `;

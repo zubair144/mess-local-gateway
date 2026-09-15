@@ -4,19 +4,41 @@ const { getSyncStatus } = require("../services/sync-service");
 const hardware = require("../hardware");
 const config = require("../config");
 
-async function buildStatus() {
+function mapServiceState(ready, disabledLabel = "offline") {
+  if (ready) {
+    return "online";
+  }
+  return disabledLabel;
+}
+
+async function buildStatus({ probePrinter = false } = {}) {
   const sqlite = db.getStatus();
-  const hardwareStatus = await hardware.getHardwareStatus();
+  const hardwareStatus = await hardware.getHardwareStatus({ probePrinter });
   const sync = getSyncStatus();
 
+  const databaseOnline = sqlite.connected ? "online" : "offline";
+  const faceOnline = !config.faceEnabled
+    ? "disabled"
+    : mapServiceState(hardwareStatus.face.ready);
+  const qrOnline = !config.qrEnabled
+    ? "disabled"
+    : mapServiceState(hardwareStatus.qr.ready);
+  const printerOnline = !config.printerEnabled
+    ? "disabled"
+    : mapServiceState(hardwareStatus.printer.ready);
+
   return {
-    status: sqlite.connected ? "ok" : "degraded",
+    status: sqlite.connected ? "online" : "degraded",
+    database: databaseOnline,
+    face: faceOnline,
+    qr: qrOnline,
+    printer: printerOnline,
     gateway: "Mess Local Gateway",
-    database: "SQLite",
     sqlite,
     currentMeal: getCurrentMeal(),
     hardware: hardwareStatus,
     sync,
+    timezone: config.timezone,
     ports: {
       gateway: config.gatewayPort,
       zkAdms: config.zkAdmsPort,
@@ -37,7 +59,11 @@ function registerStatusRoutes(app) {
   });
 
   app.get("/api/status", async (req, res) => {
-    res.json(await buildStatus());
+    res.json(
+      await buildStatus({
+        probePrinter: req.query.probe === "1",
+      })
+    );
   });
 }
 

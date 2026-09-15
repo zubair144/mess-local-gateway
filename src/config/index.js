@@ -58,5 +58,12 @@ module.exports = {
   faceDuplicateWindowMs: envInt("FACE_DUPLICATE_WINDOW_MS", 10000),
   qrDuplicateWindowMs: envInt("QR_DUPLICATE_WINDOW_MS", 3000),
 
+  timezone: envString("TIMEZONE", "Asia/Karachi"),
+  printDeclinedReceipts: envBool("PRINT_DECLINED_RECEIPTS", false),
+  dashboardPollMs: envInt("DASHBOARD_POLL_MS", 3000),
+  demoFaceDeviceUserId: envString("DEMO_FACE_DEVICE_USER_ID", "1"),
+  nodeEnv: envString("NODE_ENV", "development"),
+  devForceMeal: envString("DEV_FORCE_MEAL", "").trim().toLowerCase(),
+
   cloudApiUrl: envString("CLOUD_API_URL", ""),
 };

@@ -6,7 +6,9 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "db:init": "node src/db/init.js"
+    "db:init": "node src/db/init.js",
+    "seed:demo": "node scripts/seed-demo.js",
+    "test": "node --test test/**/*.test.js"
   },
   "keywords": [],
   "author": "",

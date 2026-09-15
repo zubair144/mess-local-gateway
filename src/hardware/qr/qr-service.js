@@ -2,12 +2,34 @@ const readline = require("readline");
 const config = require("../../config");
 const logger = require("../../logger");
 const printer = require("../printer/printer-service");
-const { processMealTransaction } = require("../../services/transaction-service");
+const mealTransaction = require("../../services/meal-transaction.service");
 
 let rl = null;
 let started = false;
 let lastScan = "";
 let lastScanTime = 0;
+
+async function printSuccessfulMeal(result) {
+  if (!result || !result.success) {
+    return { printed: false, printStatus: result && result.printStatus };
+  }
+
+  const receipt = mealTransaction.getReceiptData(result);
+
+  try {
+    await printer.printMealReceipt(receipt);
+    mealTransaction.updatePrintStatus(result.localTransactionId, "printed");
+    return { printed: true, printStatus: "printed" };
+  } catch (err) {
+    mealTransaction.updatePrintStatus(result.localTransactionId, "failed");
+    logger.error("PRINTER", err.message || err);
+    logger.error(
+      "PRINTER",
+      `Receipt failed after committed TXN ${result.localTransactionId}`
+    );
+    return { printed: false, printStatus: "failed", printError: err.message };
+  }
+}
 
 async function handleQrScan(rawValue, options = {}) {
   const qrData = String(rawValue || "").trim();
@@ -34,21 +56,24 @@ async function handleQrScan(rawValue, options = {}) {
 
   let mealResult = null;
 
-  if (config.hardwareProcessMeals) {
-    try {
-      mealResult = processMealTransaction({
-        source: "qr",
-        identifier: qrData,
-        deviceId: "bc-8000g",
-      });
-    } catch (err) {
-      logger.error("QR", err);
-    }
-  } else {
-    logger.info(
-      "QR",
-      "SQLite meal processing skipped (HARDWARE_PROCESS_MEALS=false)"
-    );
+  try {
+    mealResult = mealTransaction.processMealTransaction({
+      source: "qr",
+      identifier: qrData,
+      deviceId: "bc-8000g",
+    });
+  } catch (err) {
+    logger.error("QR", err);
+    return {
+      handled: true,
+      printed: false,
+      qrData,
+      mealResult: {
+        success: false,
+        reason: "TRANSACTION_FAILED",
+        message: err.message || "Transaction failed",
+      },
+    };
   }
 
   if (skipPrint) {
@@ -60,24 +85,33 @@ async function handleQrScan(rawValue, options = {}) {
     };
   }
 
-  try {
-    await printer.printQrReceipt(qrData);
-    logger.info("QR", "Receipt printed");
+  if (!mealResult || !mealResult.success) {
+    if (config.printDeclinedReceipts) {
+      logger.info("QR", "Declined receipt printing is enabled but not implemented");
+    }
     logger.info("QR", "Waiting for next QR scan...");
-
     return {
       handled: true,
-      printed: true,
+      printed: false,
       qrData,
       mealResult,
     };
-  } catch (err) {
-    lastScan = "";
-    lastScanTime = 0;
-    logger.error("PRINTER", err.message || err);
-    logger.info("QR", "Waiting for next QR scan...");
-    throw err;
   }
+
+  const printResult = await printSuccessfulMeal(mealResult);
+  logger.info("QR", "Waiting for next QR scan...");
+
+  return {
+    handled: true,
+    printed: printResult.printed,
+    printStatus: printResult.printStatus,
+    printError: printResult.printError,
+    qrData,
+    mealResult: {
+      ...mealResult,
+      printStatus: printResult.printStatus,
+    },
+  };
 }
 
 function startQrService() {

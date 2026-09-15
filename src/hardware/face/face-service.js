@@ -2,29 +2,49 @@ const config = require("../../config");
 const logger = require("../../logger");
 const { startAdmsServer } = require("./zk-adms");
 const printer = require("../printer/printer-service");
-const { processMealTransaction } = require("../../services/transaction-service");
+const mealTransaction = require("../../services/meal-transaction.service");
 
-const recentlyPrinted = new Map();
+const recentlySeen = new Map();
 
 let admsServer = null;
 let started = false;
 
-function isDuplicatePrint(key) {
-  const previousTime = recentlyPrinted.get(key);
-
+function isDuplicateEvent(key) {
+  const previousTime = recentlySeen.get(key);
   if (!previousTime) {
     return false;
   }
-
   return Date.now() - previousTime < config.faceDuplicateWindowMs;
 }
 
-function markAsPrinted(key) {
-  recentlyPrinted.set(key, Date.now());
+function markEvent(key) {
+  recentlySeen.set(key, Date.now());
 
   setTimeout(() => {
-    recentlyPrinted.delete(key);
+    recentlySeen.delete(key);
   }, config.faceDuplicateWindowMs);
+}
+
+async function printSuccessfulMeal(result) {
+  if (!result || !result.success) {
+    return { printed: false, printStatus: result && result.printStatus };
+  }
+
+  const receipt = mealTransaction.getReceiptData(result);
+
+  try {
+    await printer.printMealReceipt(receipt);
+    mealTransaction.updatePrintStatus(result.localTransactionId, "printed");
+    return { printed: true, printStatus: "printed" };
+  } catch (err) {
+    mealTransaction.updatePrintStatus(result.localTransactionId, "failed");
+    logger.error("PRINTER", err.message || err);
+    logger.error(
+      "PRINTER",
+      `Receipt failed after committed TXN ${result.localTransactionId}`
+    );
+    return { printed: false, printStatus: "failed", printError: err.message };
+  }
 }
 
 async function handleAttendanceEvent(attendance, options = {}) {
@@ -32,39 +52,42 @@ async function handleAttendanceEvent(attendance, options = {}) {
   const skipPrint = Boolean(options.skipPrint);
 
   if (!userId) {
-    logger.warn("FACE", "No User ID found. Skipping print.");
+    logger.warn("FACE", "No User ID found. Skipping.");
     return { handled: false, reason: "NO_USER_ID" };
   }
 
-  logger.info("FACE", `Employee ID: ${userId}`);
+  logger.info("FACE", `Device User ID: ${userId}`);
   logger.info("FACE", `Date/Time: ${attendance.dateTime || "-"}`);
 
   const eventKey = `${attendance.serialNumber || "UNKNOWN"}-${userId}-${attendance.dateTime || ""}`;
 
-  if (isDuplicatePrint(eventKey)) {
+  if (isDuplicateEvent(eventKey)) {
     logger.warn("FACE", `Duplicate attendance event ignored: ${eventKey}`);
     return { handled: false, reason: "DUPLICATE" };
   }
 
-  markAsPrinted(eventKey);
+  markEvent(eventKey);
 
   let mealResult = null;
 
-  if (config.hardwareProcessMeals) {
-    try {
-      mealResult = processMealTransaction({
-        source: "face",
-        identifier: userId,
-        deviceId: attendance.serialNumber || null,
-      });
-    } catch (err) {
-      logger.error("FACE", err);
-    }
-  } else {
-    logger.info(
-      "FACE",
-      "SQLite meal processing skipped (HARDWARE_PROCESS_MEALS=false)"
-    );
+  try {
+    mealResult = mealTransaction.processMealTransaction({
+      source: "face",
+      identifier: userId,
+      deviceId: attendance.serialNumber || null,
+    });
+  } catch (err) {
+    logger.error("FACE", err);
+    return {
+      handled: true,
+      userId,
+      printed: false,
+      mealResult: {
+        success: false,
+        reason: "TRANSACTION_FAILED",
+        message: err.message || "Transaction failed",
+      },
+    };
   }
 
   if (skipPrint) {
@@ -76,29 +99,31 @@ async function handleAttendanceEvent(attendance, options = {}) {
     };
   }
 
-  try {
-    await printer.printAttendanceReceipt({
-      userId,
-      dateTime: attendance.dateTime,
-      status: attendance.status,
-      verifyMode: attendance.verifyMode,
-      workCode: attendance.workCode,
-      serialNumber: attendance.serialNumber,
-    });
-
-    logger.info("FACE", `Receipt printed successfully for User ID: ${userId}`);
-
+  if (!mealResult || !mealResult.success) {
+    if (config.printDeclinedReceipts) {
+      logger.info("FACE", "Declined receipt printing is enabled but not implemented");
+    }
     return {
       handled: true,
       userId,
-      printed: true,
+      printed: false,
       mealResult,
     };
-  } catch (err) {
-    recentlyPrinted.delete(eventKey);
-    logger.error("PRINTER", err.message || err);
-    throw err;
   }
+
+  const printResult = await printSuccessfulMeal(mealResult);
+
+  return {
+    handled: true,
+    userId,
+    printed: printResult.printed,
+    printStatus: printResult.printStatus,
+    printError: printResult.printError,
+    mealResult: {
+      ...mealResult,
+      printStatus: printResult.printStatus,
+    },
+  };
 }
 
 async function startFaceService() {

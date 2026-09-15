@@ -60,7 +60,8 @@ Duplicate print window: `FACE_DUPLICATE_WINDOW_MS` (default 10000). If printing 
 2. `curl http://localhost:8080/` → `ZKTeco ADMS server is running`
 3. Enroll a face on the MB560-VL and present it
 4. Terminal should log `[FACE] Event received` and `[FACE] Employee ID: ...`
-5. One attendance receipt should print
+5. On success, one **meal receipt** should print (employee, meal, balance, source, TXN id)
+6. On decline (`EMPLOYEE_NOT_FOUND`, `MEAL_ALREADY_TAKEN`, etc.) **no receipt** is printed
 6. A second event for the same user/timestamp inside 10s is ignored
 
 API simulation (prints unless `"print": false`):
@@ -87,7 +88,8 @@ Duplicate window: `QR_DUPLICATE_WINDOW_MS` (default 3000).
 2. Focus the gateway terminal
 3. Scan a QR code (or type a value and press Enter)
 4. Terminal should log `[QR] Code scanned: ...`
-5. One QR receipt should print
+5. On success, one **meal receipt** should print
+6. Declined scans do not print
 6. Repeating the same value within 3s is ignored
 
 API simulation:
@@ -107,12 +109,13 @@ Working production implementation is **Zebra ZPL over TCP**, not USB/CUPS/ESC-PO
 
 Face and QR share `src/hardware/printer/printer-service.js`.
 
+After a successful SQLite transaction commit, hardware handlers call `printMealReceipt()` with employee/meal/balance data (no raw QR strings or debug payloads on the slip).
+
 Methods:
 
-- `printAttendanceReceipt(data)` — exact Face ZPL from `server.js`
-- `printQrReceipt(qrData)` — exact QR ZPL from `qr.js`
-- `printTestReceipt()` — exact test ZPL from `server.js`
-- `printMealReceipt(data)` — prepared meal receipt for later SQLite-driven receipts
+- `printMealReceipt(data)` — production meal receipt for Face/QR success
+- `printTestReceipt()` — dashboard/API test button
+- `printAttendanceReceipt(data)` / `printQrReceipt(qrData)` — legacy templates retained, not used by the meal engine
 - `getPrinterStatus()` — TCP connect probe, no ZPL sent
 
 Startup probing only opens/closes a TCP socket. It does not send cut/feed commands.
@@ -142,7 +145,7 @@ SQLITE_PATH=./data/mess-local.db
 
 `ZK_DEVICE_IP` / `ZK_DEVICE_PORT` / `ZK_COMM_KEY` are recorded for the LAN device. Production Face uses ADMS push, not `node-zklib` polling.
 
-Set `HARDWARE_PROCESS_MEALS=false` to restore print-only Face/QR behavior while SQLite employee mapping is still being populated.
+Populate employees with `npm run seed:demo` or your cloud→local sync (next phase).
 
 ## Known hardware requirements
 
