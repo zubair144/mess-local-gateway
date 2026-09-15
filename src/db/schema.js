@@ -23,8 +23,18 @@ function addColumnIfMissing(db, table, column, definition) {
   }
 
   const columns = getColumnNames(db, table);
-  if (!columns.includes(column)) {
+  if (columns.includes(column)) {
+    return;
+  }
+
+  try {
     db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  } catch (error) {
+    const message = String(error && error.message ? error.message : error);
+    if (message.includes("duplicate column name")) {
+      return;
+    }
+    throw error;
   }
 }
 
@@ -219,6 +229,17 @@ function migrateExistingColumns(db) {
   addColumnIfMissing(db, "employees", "is_active", "INTEGER");
   addColumnIfMissing(db, "employees", "created_at", "TEXT");
   addColumnIfMissing(db, "employees", "sync_version", "INTEGER DEFAULT 0");
+  addColumnIfMissing(db, "employees", "qr_token_hash", "TEXT");
+  addColumnIfMissing(db, "employees", "qr_status", "TEXT");
+  addColumnIfMissing(db, "employees", "cloud_balance", "REAL");
+  addColumnIfMissing(db, "employees", "department", "TEXT");
+  addColumnIfMissing(db, "employees", "face_template_id", "TEXT");
+
+  db.exec(`
+    UPDATE employees
+    SET cloud_balance = COALESCE(cloud_balance, available_balance, 0)
+    WHERE cloud_balance IS NULL
+  `);
 
   db.exec(`
     UPDATE employees
@@ -268,6 +289,12 @@ function migrateExistingColumns(db) {
   addColumnIfMissing(db, "sync_queue", "payload_json", "TEXT");
   addColumnIfMissing(db, "sync_queue", "attempt_count", "INTEGER DEFAULT 0");
   addColumnIfMissing(db, "sync_queue", "updated_at", "TEXT");
+  addColumnIfMissing(db, "sync_queue", "last_attempt_at", "TEXT");
+  addColumnIfMissing(db, "sync_queue", "next_attempt_at", "TEXT");
+  addColumnIfMissing(db, "sync_queue", "cloud_transaction_id", "TEXT");
+
+  addColumnIfMissing(db, "meal_rates", "cloud_id", "TEXT");
+  addColumnIfMissing(db, "meal_timings", "cloud_id", "TEXT");
 
   db.exec(`
     UPDATE sync_queue
@@ -382,9 +409,21 @@ function applyIndexes(db) {
   `);
 
   db.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_employees_cloud_id
+    ON employees(cloud_id)
+    WHERE cloud_id IS NOT NULL AND TRIM(cloud_id) != '';
+  `);
+
+  db.exec(`
     CREATE UNIQUE INDEX IF NOT EXISTS idx_employees_qr_code
     ON employees(qr_code)
     WHERE qr_code IS NOT NULL AND TRIM(qr_code) != '';
+  `);
+
+  db.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_employees_qr_token_hash
+    ON employees(qr_token_hash)
+    WHERE qr_token_hash IS NOT NULL AND TRIM(qr_token_hash) != '';
   `);
 
   db.exec(`

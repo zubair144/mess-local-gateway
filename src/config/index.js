@@ -65,5 +65,26 @@ module.exports = {
   nodeEnv: envString("NODE_ENV", "development"),
   devForceMeal: envString("DEV_FORCE_MEAL", "").trim().toLowerCase(),
 
-  cloudApiUrl: envString("CLOUD_API_URL", ""),
+  cloudApiUrl: envString("CLOUD_API_URL", "http://localhost:3000"),
+  gatewayId: envString("GATEWAY_ID", "MESS-01"),
+  gatewayApiKey: envString("GATEWAY_API_KEY", ""),
+  // CLOUD_SYNC_ENABLED is the master switch; SYNC_ENABLED remains a backward-compatible alias.
+  cloudSyncEnabled: envBool(
+    "CLOUD_SYNC_ENABLED",
+    envBool("SYNC_ENABLED", true)
+  ),
+  cloudPullEnabled: envBool("CLOUD_PULL_ENABLED", true),
+  cloudPushEnabled: envBool("CLOUD_PUSH_ENABLED", true),
+  heartbeatEnabled: envBool("HEARTBEAT_ENABLED", true),
+  syncPullIntervalMs: envInt("SYNC_PULL_INTERVAL_MS", 15000),
+  syncPushIntervalMs: envInt("SYNC_PUSH_INTERVAL_MS", 10000),
+  heartbeatIntervalMs: envInt("HEARTBEAT_INTERVAL_MS", 30000),
+  syncBatchSize: envInt("SYNC_BATCH_SIZE", 50),
+  syncRequestTimeoutMs: envInt("SYNC_REQUEST_TIMEOUT_MS", 10000),
+  syncMaxAttempts: envInt("SYNC_MAX_ATTEMPTS", 10),
+  syncRetryBaseMs: envInt("SYNC_RETRY_BASE_MS", 5000),
+  syncRetryMaxMs: envInt("SYNC_RETRY_MAX_MS", 300000),
 };
+
+// Keep syncEnabled as a plain alias so existing callers keep working.
+module.exports.syncEnabled = module.exports.cloudSyncEnabled;

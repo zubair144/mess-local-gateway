@@ -12,10 +12,11 @@ Face, QR, and printer were migrated from the working `zkteco-mb560-test` product
 4. Start ZKTeco ADMS Face listener (`8080`)
 5. Start QR scanner (stdin / USB HID)
 6. Probe printer TCP `192.168.1.17:9100` (connect only, no print job)
-7. Start cloud sync placeholder
+7. Start cloud sync workers (pull / push / heartbeat). Cloud failure does not block startup.
 
 On `SIGINT` / `SIGTERM`:
 
+- stop sync workers
 - stop QR readline
 - close ADMS listener
 - close Gateway API

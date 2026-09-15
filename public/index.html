@@ -20,12 +20,37 @@
         <button id="syncNowBtn" type="button" disabled title="Cloud sync not configured">
           Sync Now
         </button>
+        <button id="forceFullPullBtn" type="button" disabled title="Cloud sync not configured">
+          Force Full Pull
+        </button>
         <button id="retryFailedBtn" type="button" disabled title="Cloud sync not configured">
           Retry Failed
         </button>
+        <button id="resetDemoBtn" type="button" title="Delete local demo/business data">
+          Reset Local Demo Data
+        </button>
+        <button id="resetAndPullBtn" type="button" disabled title="Cloud sync not configured">
+          Reset &amp; Reload From Cloud
+        </button>
       </section>
+      <div id="notice" class="notice hidden" role="status"></div>
 
       <section class="cards" id="statusCards"></section>
+
+      <section class="panel cloud-panel">
+        <h2>Cloud Synchronization</h2>
+        <dl class="cloud-meta" id="cloudMeta">
+          <div><dt>Cloud Connection</dt><dd id="cloudConnection">-</dd></div>
+          <div><dt>Gateway ID</dt><dd id="cloudGatewayId">-</dd></div>
+          <div><dt>Pull / Push</dt><dd id="cloudPullPush">-</dd></div>
+          <div><dt>Last Successful Pull</dt><dd id="cloudLastPull">-</dd></div>
+          <div><dt>Last Successful Push</dt><dd id="cloudLastPush">-</dd></div>
+          <div><dt>Current Cloud Sync Version</dt><dd id="cloudSyncVersion">-</dd></div>
+          <div><dt>Pending Uploads</dt><dd id="cloudPending">-</dd></div>
+          <div><dt>Failed Uploads</dt><dd id="cloudFailed">-</dd></div>
+          <div class="cloud-error"><dt>Last Error</dt><dd id="cloudLastError">-</dd></div>
+        </dl>
+      </section>
 
       <section class="stats" id="statsGrid"></section>
 

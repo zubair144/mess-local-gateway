@@ -7,7 +7,7 @@ Local mess gateway for the Executive Mess. One Node process owns:
 - Black Copper BC-8000G QR scanner (USB HID keyboard)
 - Zebra receipt printer (ZPL over TCP 9100)
 - Local REST API + operational dashboard
-- Cloud sync placeholder
+- Cloud ↔ local sync (offline-first)
 
 ## Run
 
@@ -48,7 +48,7 @@ Successful flow:
 validate → SQLite COMMIT → print one meal receipt
 ```
 
-See [`docs/LOCAL-TRANSACTION-ENGINE.md`](docs/LOCAL-TRANSACTION-ENGINE.md).
+See [`docs/LOCAL-TRANSACTION-ENGINE.md`](docs/LOCAL-TRANSACTION-ENGINE.md) and [`docs/CLOUD-SYNC.md`](docs/CLOUD-SYNC.md).
 
 ## Local APIs
 
@@ -62,6 +62,8 @@ See [`docs/LOCAL-TRANSACTION-ENGINE.md`](docs/LOCAL-TRANSACTION-ENGINE.md).
 | GET | `/api/local/transactions` | Transactions (filters supported) |
 | GET | `/api/local/sync-queue` | Sync queue counts/items |
 | POST | `/api/local/meal/process` | Manual meal test (`employeeCode`) |
+| POST | `/api/local/sync/now` | Pull master data + push pending transactions |
+| POST | `/api/local/sync/retry-failed` | Re-queue failed uploads and push |
 | POST | `/api/meal/face` | Face simulation |
 | POST | `/api/meal/qr` | QR simulation |
 | POST | `/api/printer/test` | Print one test receipt |
@@ -96,6 +98,19 @@ sqlite3 data/mess-local.db "SELECT employee_code, meal_name, total_amount, sourc
 sqlite3 data/mess-local.db "SELECT entry_type, amount, balance_before, balance_after FROM employee_ledger ORDER BY created_at DESC LIMIT 10;"
 ```
 
+## Cloud sync
+
+Requires `CLOUD_API_URL` (portal base URL) and `GATEWAY_API_KEY`. The gateway never talks to MongoDB.
+
+```bash
+curl http://localhost:5050/api/status
+curl -X POST http://localhost:5050/api/local/sync/now
+curl -X POST http://localhost:5050/api/local/sync/retry-failed
+sqlite3 data/mess-local.db "SELECT status, COUNT(*) FROM sync_queue GROUP BY status;"
+```
+
+Details: [`docs/CLOUD-SYNC.md`](docs/CLOUD-SYNC.md).
+
 ## Tests
 
 ```bash
@@ -107,3 +122,4 @@ npm test
 - [`docs/HARDWARE-INTEGRATION.md`](docs/HARDWARE-INTEGRATION.md)
 - [`docs/MIGRATION-zkteco-mb560-test.md`](docs/MIGRATION-zkteco-mb560-test.md)
 - [`docs/LOCAL-TRANSACTION-ENGINE.md`](docs/LOCAL-TRANSACTION-ENGINE.md)
+- [`docs/CLOUD-SYNC.md`](docs/CLOUD-SYNC.md)

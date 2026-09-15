@@ -97,6 +97,9 @@ function getPendingSyncItems(limit = 20) {
         status,
         attempt_count,
         last_error,
+        last_attempt_at,
+        next_attempt_at,
+        cloud_transaction_id,
         created_at,
         updated_at
       FROM sync_queue
@@ -118,11 +121,13 @@ async function getDashboardSnapshot({ probePrinter = false } = {}) {
     .prepare("SELECT COUNT(*) AS count FROM employees")
     .get().count;
 
-  const cloudSyncLabel = !config.cloudApiUrl
+  const cloudSyncLabel = !sync.configured
     ? "NOT CONFIGURED"
-    : sync.ready
-      ? "ONLINE"
-      : "OFFLINE";
+    : sync.connectionStatus === "auth_failed"
+      ? "AUTH FAILED"
+      : sync.online
+        ? "ONLINE"
+        : "OFFLINE";
 
   return {
     title: "EXECUTIVE MESS LOCAL GATEWAY",
@@ -133,11 +138,28 @@ async function getDashboardSnapshot({ probePrinter = false } = {}) {
       qrScanner: hardwareStatus.qr.ready ? "ONLINE" : "OFFLINE",
       printer: hardwareStatus.printer.ready ? "ONLINE" : "OFFLINE",
     },
+    cloud: {
+      configured: Boolean(sync.configured),
+      online: Boolean(sync.online),
+      gatewayId: sync.gatewayId,
+      pullEnabled: sync.pullEnabled !== false,
+      pushEnabled: sync.pushEnabled !== false,
+      heartbeatEnabled: sync.heartbeatEnabled !== false,
+      lastPullAt: sync.lastPullAt,
+      lastPushAt: sync.lastPushAt,
+      lastHeartbeatAt: sync.lastHeartbeatAt,
+      syncVersion: Number(sync.syncVersion || 0) || 0,
+      pending: Number(sync.pending || 0) || 0,
+      failed: Number(sync.failed || 0) || 0,
+      lastError: sync.lastError || null,
+      connectionStatus: sync.connectionStatus || sync.status,
+      label: cloudSyncLabel,
+    },
     stats: {
       employees: employeeCount,
       todayTransactions: today.count,
       todayAmount: today.amount,
-      pendingSync: syncQueue.pending,
+      pendingSync: syncQueue.pending + syncQueue.processing,
       failedSync: syncQueue.failed,
       businessDate: today.businessDate,
     },

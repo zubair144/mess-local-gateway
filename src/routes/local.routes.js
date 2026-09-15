@@ -3,7 +3,49 @@ const employeeService = require("../services/employee-service");
 const mealTransaction = require("../services/meal-transaction.service");
 const dashboardService = require("../services/dashboard-service");
 const { getSyncQueueSummary } = require("../services/dashboard-service");
+const {
+  syncNow,
+  forceFullPull,
+  retryFailed,
+  clearFailedDummy,
+  resetDemoData,
+  resetAndPull,
+  getSyncStatus,
+} = require("../services/sync-service");
 const logger = require("../logger");
+
+async function handleForceFullPull(req, res) {
+  const sync = getSyncStatus();
+  if (!sync.configured) {
+    return res.status(400).json({
+      success: false,
+      message: "Cloud sync is not configured. Set CLOUD_API_URL and GATEWAY_API_KEY.",
+    });
+  }
+  if (sync.pullEnabled === false) {
+    return res.status(400).json({
+      success: false,
+      message: "Cloud pull is disabled (CLOUD_PULL_ENABLED=false).",
+    });
+  }
+
+  try {
+    const result = await forceFullPull();
+    res.json(result);
+  } catch (err) {
+    logger.error("SYNC", err.message || err);
+    res.status(500).json({
+      success: false,
+      message: err.message || "Force full pull failed",
+    });
+  }
+}
+
+function requireConfirm(req) {
+  const bodyConfirm = req.body && (req.body.confirm === true || req.body.confirm === "1");
+  const queryConfirm = req.query && req.query.confirm === "1";
+  return Boolean(bodyConfirm || queryConfirm);
+}
 
 function registerLocalRoutes(app) {
   app.get("/api/local/employees", (req, res) => {
@@ -173,18 +215,126 @@ function registerLocalRoutes(app) {
     }
   });
 
-  app.post("/api/local/sync/retry-failed", (req, res) => {
-    res.status(501).json({
-      success: false,
-      message: "Cloud synchronization is not configured yet.",
-    });
+  app.post("/api/local/sync/retry-failed", async (req, res) => {
+    const sync = getSyncStatus();
+    if (!sync.configured) {
+      return res.status(400).json({
+        success: false,
+        message: "Cloud sync is not configured. Set CLOUD_API_URL and GATEWAY_API_KEY.",
+      });
+    }
+
+    try {
+      const result = await retryFailed();
+      res.json(result);
+    } catch (err) {
+      logger.error("SYNC", err.message || err);
+      res.status(500).json({
+        success: false,
+        message: err.message || "Retry failed",
+      });
+    }
   });
 
-  app.post("/api/local/sync/now", (req, res) => {
-    res.status(501).json({
-      success: false,
-      message: "Cloud synchronization is not configured yet.",
-    });
+  app.post("/api/local/sync/now", async (req, res) => {
+    const sync = getSyncStatus();
+    if (!sync.configured) {
+      return res.status(400).json({
+        success: false,
+        message: "Cloud sync is not configured. Set CLOUD_API_URL and GATEWAY_API_KEY.",
+      });
+    }
+
+    try {
+      const result = await syncNow();
+      res.json(result);
+    } catch (err) {
+      logger.error("SYNC", err.message || err);
+      res.status(500).json({
+        success: false,
+        message: err.message || "Sync now failed",
+      });
+    }
+  });
+
+  app.post("/api/local/sync/force-full-pull", handleForceFullPull);
+  app.post("/api/sync/force-full-pull", handleForceFullPull);
+
+  app.post("/api/local/sync/clear-failed-dummy", (req, res) => {
+    if (process.env.NODE_ENV === "production" && req.query.confirm !== "1") {
+      return res.status(400).json({
+        success: false,
+        message: "Pass ?confirm=1 in production to clear failed dummy queue rows.",
+      });
+    }
+
+    try {
+      const result = clearFailedDummy();
+      res.json({ success: true, ...result });
+    } catch (err) {
+      logger.error("SYNC", err.message || err);
+      res.status(500).json({
+        success: false,
+        message: err.message || "Clear failed",
+      });
+    }
+  });
+
+  app.post("/api/local/admin/reset-demo-data", (req, res) => {
+    if (!requireConfirm(req)) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Confirmation required. POST {\"confirm\":true} or ?confirm=1 — this deletes local business/demo data.",
+      });
+    }
+
+    try {
+      const result = resetDemoData();
+      res.json(result);
+    } catch (err) {
+      logger.error("ADMIN", err.message || err);
+      res.status(500).json({
+        success: false,
+        message: err.message || "Reset demo data failed",
+      });
+    }
+  });
+
+  app.post("/api/local/admin/reset-and-pull", async (req, res) => {
+    if (!requireConfirm(req)) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Confirmation required. POST {\"confirm\":true} or ?confirm=1 — this deletes local data then reloads from cloud.",
+      });
+    }
+
+    const sync = getSyncStatus();
+    if (!sync.configured) {
+      return res.status(400).json({
+        success: false,
+        message: "Cloud sync is not configured. Set CLOUD_API_URL and GATEWAY_API_KEY.",
+      });
+    }
+    if (sync.pullEnabled === false) {
+      return res.status(400).json({
+        success: false,
+        message: "Cloud pull is disabled (CLOUD_PULL_ENABLED=false).",
+      });
+    }
+
+    try {
+      const result = await resetAndPull();
+      const status = result.success ? 200 : 400;
+      res.status(status).json(result);
+    } catch (err) {
+      logger.error("ADMIN", err.message || err);
+      res.status(500).json({
+        success: false,
+        message: err.message || "Reset and pull failed",
+      });
+    }
   });
 }
 

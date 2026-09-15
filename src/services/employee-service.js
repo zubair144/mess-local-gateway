@@ -1,4 +1,5 @@
 const db = require("../db/database");
+const { hashQrToken, parseQrToken } = require("../cloud/qr-hash");
 
 const EMPLOYEE_COLUMNS = `
   id,
@@ -6,13 +7,18 @@ const EMPLOYEE_COLUMNS = `
   employee_code,
   name,
   department_id,
+  department,
   qr_code,
+  qr_token_hash,
+  qr_status,
   face_device_user_id,
+  face_template_id,
   is_active,
   active,
   mess_eligible,
   monthly_allowance,
   available_balance,
+  cloud_balance,
   created_at,
   updated_at,
   synced_at,
@@ -46,6 +52,9 @@ function mapEmployee(row) {
     mess_eligible: isActiveValue(row.mess_eligible) ? 1 : 0,
     available_balance: Number(row.available_balance || 0),
     monthly_allowance: Number(row.monthly_allowance || 0),
+    cloud_balance: Number(
+      row.cloud_balance == null ? row.available_balance || 0 : row.cloud_balance
+    ),
     isActive,
     messEligible: isActiveValue(row.mess_eligible),
   };
@@ -70,10 +79,37 @@ function findByFaceDeviceId(id, database = db) {
   return mapEmployee(row);
 }
 
+function isQrStatusActive(value) {
+  const status = String(value || "").trim().toUpperCase();
+  return !status || status === "ACTIVE";
+}
+
 function findByQrCode(code, database = db) {
   const identifier = normalizeIdentifier(code);
   if (!identifier) {
     return null;
+  }
+
+  const token = parseQrToken(identifier);
+  const hash = hashQrToken(identifier);
+
+  if (hash) {
+    const hashed = database
+      .prepare(
+        `
+        SELECT ${EMPLOYEE_COLUMNS}
+        FROM employees
+        WHERE qr_token_hash = ?
+      `
+      )
+      .get(hash);
+
+    if (hashed) {
+      if (!isQrStatusActive(hashed.qr_status)) {
+        return null;
+      }
+      return mapEmployee(hashed);
+    }
   }
 
   const row = database
@@ -82,9 +118,10 @@ function findByQrCode(code, database = db) {
       SELECT ${EMPLOYEE_COLUMNS}
       FROM employees
       WHERE qr_code = ?
+         OR qr_code = ?
     `
     )
-    .get(identifier);
+    .get(identifier, token || identifier);
 
   return mapEmployee(row);
 }
@@ -175,15 +212,22 @@ function toPublicEmployee(employee) {
 
   return {
     id: employee.id,
+    cloudId: employee.cloud_id || null,
     employeeCode: employee.employee_code,
     name: employee.name,
     departmentId: employee.department_id,
+    department: employee.department || employee.department_id || "",
     qrCode: employee.qr_code,
     faceDeviceUserId: employee.face_device_user_id,
     isActive: Boolean(employee.isActive ?? employee.is_active),
     messEligible: Boolean(employee.messEligible ?? employee.mess_eligible),
     monthlyAllowance: Number(employee.monthly_allowance || 0),
     availableBalance: Number(employee.available_balance || 0),
+    cloudBalance: Number(
+      employee.cloud_balance == null
+        ? employee.available_balance || 0
+        : employee.cloud_balance
+    ),
     createdAt: employee.created_at,
     updatedAt: employee.updated_at,
   };

@@ -43,13 +43,14 @@ function upsertEmployee(row) {
       mess_eligible,
       monthly_allowance,
       available_balance,
+      cloud_balance,
       active,
       is_active,
       created_at,
       updated_at,
       sync_version
     ) VALUES (
-      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0
+      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0
     )
     ON CONFLICT(employee_code) DO UPDATE SET
       name = excluded.name,
@@ -58,9 +59,11 @@ function upsertEmployee(row) {
       mess_eligible = excluded.mess_eligible,
       monthly_allowance = excluded.monthly_allowance,
       available_balance = excluded.available_balance,
+      cloud_balance = excluded.cloud_balance,
       active = excluded.active,
       is_active = excluded.is_active,
       updated_at = excluded.updated_at
+    WHERE employees.cloud_id IS NULL OR TRIM(employees.cloud_id) = ''
   `
   ).run(
     row.id,
@@ -72,6 +75,7 @@ function upsertEmployee(row) {
     row.faceDeviceUserId,
     row.messEligible,
     row.monthlyAllowance,
+    row.availableBalance,
     row.availableBalance,
     row.isActive,
     row.isActive,
@@ -147,13 +151,32 @@ function main() {
     updatedAt: nowIso,
   });
 
-  upsertMealRate("breakfast", 300, 0, nowIso);
-  upsertMealRate("lunch", 500, 0, nowIso);
-  upsertMealRate("dinner", 500, 0, nowIso);
+  const cloudSyncVersion = Number(
+    (
+      db
+        .prepare(
+          "SELECT value FROM gateway_settings WHERE key = 'last_cloud_sync_version'"
+        )
+        .get() || { value: "0" }
+    ).value || 0
+  );
 
-  upsertMealTiming("breakfast", "07:00", "10:00", nowIso);
-  upsertMealTiming("lunch", activeWindow.start, activeWindow.end, nowIso);
-  upsertMealTiming("dinner", "19:00", "22:00", nowIso);
+  if (cloudSyncVersion > 0) {
+    console.log(
+      `Skipping demo meal rates/timings because cloud sync version is ${cloudSyncVersion}.`
+    );
+    console.log(
+      "To reset demo data: stop the gateway, delete data/mess-local.db, then run npm run db:init && npm run seed:demo"
+    );
+  } else {
+    upsertMealRate("breakfast", 300, 0, nowIso);
+    upsertMealRate("lunch", 500, 0, nowIso);
+    upsertMealRate("dinner", 500, 0, nowIso);
+
+    upsertMealTiming("breakfast", "07:00", "10:00", nowIso);
+    upsertMealTiming("lunch", activeWindow.start, activeWindow.end, nowIso);
+    upsertMealTiming("dinner", "19:00", "22:00", nowIso);
+  }
 
   db.prepare(
     `
@@ -169,6 +192,9 @@ function main() {
   console.log(`Active lunch window for testing: ${activeWindow.start} - ${activeWindow.end}`);
   console.log(`Face device user id for EMP001: ${config.demoFaceDeviceUserId}`);
   console.log("QR code for EMP001: EMP001-QR");
+  console.log(
+    "Demo seed never overwrites employees that already have a cloud_id."
+  );
 }
 
 main();

@@ -169,6 +169,55 @@ td {
   font-size: 0.85rem;
 }
 
+.cloud-panel .cloud-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px 18px;
+  margin: 0;
+}
+
+.cloud-meta div {
+  margin: 0;
+}
+
+.cloud-meta dt {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.cloud-meta dd {
+  margin: 4px 0 0;
+  font-weight: 700;
+}
+
+.cloud-error {
+  grid-column: 1 / -1;
+}
+
+.notice {
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--panel-border);
+  background: #1f2937;
+}
+
+.notice.hidden {
+  display: none;
+}
+
+.notice.success {
+  border-color: var(--ok);
+}
+
+.notice.error {
+  border-color: var(--bad);
+}
+
+button.busy {
+  opacity: 0.7;
+}
+
 @media (max-width: 900px) {
   .grid-two {
     grid-template-columns: 1fr;

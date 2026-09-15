@@ -219,6 +219,8 @@ function insertSyncQueue(database, row) {
         status,
         retry_count,
         attempt_count,
+        last_attempt_at,
+        next_attempt_at,
         created_at,
         updated_at
       ) VALUES (
@@ -230,12 +232,14 @@ function insertSyncQueue(database, row) {
         'pending',
         0,
         0,
+        NULL,
+        ?,
         ?,
         ?
       )
     `
     )
-    .run(row.entityId, row.payload, row.payload, row.createdAt, row.createdAt);
+    .run(row.entityId, row.payload, row.payload, row.createdAt, row.createdAt, row.createdAt);
 }
 
 function updateEmployeeBalance(database, employeeId, newBalance, updatedAt, totalAmount) {
@@ -473,6 +477,7 @@ function createProcessor(database, processorOptions = {}) {
         localTransactionId,
         cloudTransactionId: null,
         employeeId: employee.id,
+        employeeCloudId: employee.cloud_id || null,
         employeeCode: employee.employee_code,
         employeeName: employee.name,
         source,
@@ -489,6 +494,7 @@ function createProcessor(database, processorOptions = {}) {
         businessDate: time.operationalDate,
         timezone: timeZone,
         status: "completed",
+        printStatus: "pending",
       };
 
       insertSyncQueue(database, {

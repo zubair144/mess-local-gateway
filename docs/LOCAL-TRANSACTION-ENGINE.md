@@ -95,7 +95,8 @@ DEV_FORCE_MEAL=lunch
 
 - URL: `http://localhost:5050/gateway` (also served at `/`)
 - Poll interval: `DASHBOARD_POLL_MS` (default 3000 ms)
-- Cloud sync buttons are disabled until cloud sync is implemented.
+- Cloud panel shows connection, gateway id, last pull/push, sync version, queue counts, and last error.
+- **Sync Now** / **Retry Failed** are enabled when `GATEWAY_API_KEY` is configured.
 
 ## Testing
 
@@ -103,8 +104,10 @@ DEV_FORCE_MEAL=lunch
 npm test
 ```
 
-Covers success, duplicate (cross-source), insufficient balance, inactive, ineligible, and not-found paths.
+Covers success, duplicate (cross-source), insufficient balance, inactive, ineligible, and not-found paths, plus cloud pull/push/balance protection in `test/cloud-sync.test.js`.
 
-## Cloud sync (next phase)
+## Cloud sync
 
-`sync_queue` rows are created with `status=pending` for every successful transaction. Full upload/sync to cloud APIs is intentionally not implemented in this phase.
+Successful local meals enqueue `sync_queue` with `status=pending` after SQLite `COMMIT`. Upload is asynchronous (`src/sync/`) and is not part of the meal transaction. See [`CLOUD-SYNC.md`](CLOUD-SYNC.md).
+
+Demo seed never overwrites employees that already have a `cloud_id`. Full demo reset: stop the gateway, delete `data/mess-local.db`, then `npm run db:init && npm run seed:demo`.

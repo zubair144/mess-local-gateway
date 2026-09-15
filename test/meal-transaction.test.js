@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 const Database = require("better-sqlite3");
 const { applySchema } = require("../src/db/schema");
 const { createProcessor } = require("../src/services/meal-transaction.service");
+const { sha256hex } = require("../src/cloud/qr-hash");
 
 function createTestDb() {
   const db = new Database(":memory:");
@@ -186,4 +187,31 @@ test("employee not found is declined", () => {
   });
 
   assert.equal(result.reason, "EMPLOYEE_NOT_FOUND");
+});
+
+test("production QR hash lookup serves a meal without plaintext qr_code", () => {
+  const db = createTestDb();
+  seedBase(db);
+  const now = new Date().toISOString();
+  db.prepare(
+    `
+    INSERT INTO employees (
+      id, employee_code, name, qr_code, qr_token_hash, qr_status,
+      mess_eligible, monthly_allowance, available_balance,
+      active, is_active, created_at, updated_at
+    ) VALUES (
+      'emp-hash', 'EMPHASH', 'Hash User', NULL, ?, 'ACTIVE',
+      1, 15000, 15000, 1, 1, ?, ?
+    )
+  `
+  ).run(sha256hex("portal-secret"), now, now);
+
+  const processor = createProcessor(db, { timeZone: "Asia/Karachi" });
+  const result = processor.processMealTransaction({
+    source: "qr",
+    identifier: "MESS_EMPLOYEE:portal-secret",
+  });
+
+  assert.equal(result.success, true);
+  assert.equal(result.employee.employeeCode, "EMPHASH");
 });
