@@ -16,7 +16,7 @@ The source project was **not deleted** and was not modified. Only production Fac
 
 Neither file imported `printer.js`, `node-zklib`, or `usb`.
 
-Working printer in both production services: Zebra ZPL TCP `192.168.1.17:9100`.
+Working printer in both production services: Zebra ZPL TCP `192.168.1.186:9100`.
 
 ## Source file → target file
 

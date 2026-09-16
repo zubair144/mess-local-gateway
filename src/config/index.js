@@ -44,7 +44,7 @@ module.exports = {
   zkDevicePort: envInt("ZK_DEVICE_PORT", 4370),
   zkCommKey: envInt("ZK_COMM_KEY", 0),
 
-  printerIp: envString("PRINTER_IP", "192.168.1.17"),
+  printerIp: envString("PRINTER_IP", "192.168.1.186"),
   printerPort: envInt("PRINTER_PORT", 9100),
   printerTimeoutMs: envInt("PRINTER_TIMEOUT_MS", 5000),
 

@@ -11,7 +11,7 @@ Face, QR, and printer were migrated from the working `zkteco-mb560-test` product
 3. Start Gateway API (`5050`)
 4. Start ZKTeco ADMS Face listener (`8080`)
 5. Start QR scanner (stdin / USB HID)
-6. Probe printer TCP `192.168.1.17:9100` (connect only, no print job)
+6. Probe printer TCP `192.168.1.186:9100` (connect only, no print job)
 7. Start cloud sync workers (pull / push / heartbeat). Cloud failure does not block startup.
 
 On `SIGINT` / `SIGTERM`:
@@ -105,7 +105,7 @@ curl -X POST http://localhost:5050/api/meal/qr \
 
 Working production implementation is **Zebra ZPL over TCP**, not USB/CUPS/ESC-POS.
 
-- IP: `192.168.1.17`
+- IP: `192.168.1.186`
 - Port: `9100`
 
 Face and QR share `src/hardware/printer/printer-service.js`.
@@ -139,7 +139,7 @@ ZK_ADMS_PORT=8080
 GATEWAY_HOST_IP=192.168.1.4
 ZK_DEVICE_IP=192.168.1.16
 ZK_DEVICE_PORT=4370
-PRINTER_IP=192.168.1.17
+PRINTER_IP=192.168.1.186
 PRINTER_PORT=9100
 SQLITE_PATH=./data/mess-local.db
 ```
@@ -152,7 +152,7 @@ Populate employees with `npm run seed:demo` or your cloud→local sync (next pha
 
 - Mac and MB560-VL on the same LAN
 - Device ADMS port `8080` reachable (allow Node in macOS firewall)
-- Zebra printer at `192.168.1.17:9100`
+- Zebra printer at `192.168.1.186:9100`
 - BC-8000G USB scanner in HID keyboard mode with CR suffix
 - Gateway terminal focused for QR stdin
 - Do not run the old `zkteco-mb560-test/server.js` at the same time (port 8080 clash)
