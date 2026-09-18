@@ -3,6 +3,8 @@ const logger = require("../../logger");
 const { startAdmsServer } = require("./zk-adms");
 const printer = require("../printer/printer-service");
 const mealTransaction = require("../../services/meal-transaction.service");
+const identityService = require("../../services/identity-service");
+const { isCardVerifyMode } = require("../../utils/rfid");
 
 const recentlySeen = new Map();
 
@@ -68,11 +70,30 @@ async function handleAttendanceEvent(attendance, options = {}) {
 
   markEvent(eventKey);
 
+  const cardEvent = isCardVerifyMode(attendance.verifyMode);
+  const source = cardEvent ? "rfid" : "face";
+  const verificationOnly = Boolean(options.verificationOnly) || identityService.isVerificationArmed();
+
+  if (verificationOnly) {
+    const session = identityService.createVerificationSession({
+      source,
+      identifier: userId,
+      deviceId: attendance.serialNumber || null,
+    });
+    return {
+      handled: true,
+      userId,
+      printed: false,
+      verificationSession: session,
+      mealResult: null,
+    };
+  }
+
   let mealResult = null;
 
   try {
     mealResult = mealTransaction.processMealTransaction({
-      source: "face",
+      source,
       identifier: userId,
       deviceId: attendance.serialNumber || null,
     });

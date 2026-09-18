@@ -39,6 +39,7 @@ function upsertEmployee(row) {
       name,
       department_id,
       qr_code,
+      rfid_uid,
       face_device_user_id,
       mess_eligible,
       monthly_allowance,
@@ -50,11 +51,12 @@ function upsertEmployee(row) {
       updated_at,
       sync_version
     ) VALUES (
-      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0
+      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0
     )
     ON CONFLICT(employee_code) DO UPDATE SET
       name = excluded.name,
       qr_code = excluded.qr_code,
+      rfid_uid = excluded.rfid_uid,
       face_device_user_id = excluded.face_device_user_id,
       mess_eligible = excluded.mess_eligible,
       monthly_allowance = excluded.monthly_allowance,
@@ -72,6 +74,7 @@ function upsertEmployee(row) {
     row.name,
     row.departmentId,
     row.qrCode,
+    row.rfidUid || row.rfidCardUid || null,
     row.faceDeviceUserId,
     row.messEligible,
     row.monthlyAllowance,
@@ -126,6 +129,7 @@ function main() {
     name: "Muhammad Ali",
     departmentId: "dept-ops",
     qrCode: "EMP001-QR",
+    rfidUid: "04A1B2C3D4",
     faceDeviceUserId: config.demoFaceDeviceUserId,
     messEligible: 1,
     monthlyAllowance: 15000,
@@ -142,6 +146,7 @@ function main() {
     name: "Low Balance User",
     departmentId: "dept-ops",
     qrCode: "EMP002-QR",
+    rfidUid: "04AABBCCDD",
     faceDeviceUserId: "9999",
     messEligible: 1,
     monthlyAllowance: 15000,
@@ -191,7 +196,7 @@ function main() {
   console.log("Employees: EMP001 (15000), EMP002 (200)");
   console.log(`Active lunch window for testing: ${activeWindow.start} - ${activeWindow.end}`);
   console.log(`Face device user id for EMP001: ${config.demoFaceDeviceUserId}`);
-  console.log("QR code for EMP001: EMP001-QR");
+  console.log("RFID UID for EMP001: 04A1B2C3D4");
   console.log(
     "Demo seed never overwrites employees that already have a cloud_id."
   );

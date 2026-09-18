@@ -11,7 +11,7 @@ const {
   normalizeSource,
 } = require("../utils/format");
 
-const VALID_SOURCES = new Set(["face", "qr", "manual", "manual-test"]);
+const VALID_SOURCES = new Set(["face", "qr", "rfid", "manual", "manual-test"]);
 const recentEvents = [];
 const MAX_RECENT_EVENTS = 50;
 
@@ -26,16 +26,18 @@ function declined(reason, extra = {}) {
   };
 }
 
-function declineMessage(reason, employee, meal) {
+function declineMessage(reason, employee, meal, source) {
   const name = employee && employee.name ? employee.name : "Employee";
 
   switch (reason) {
     case "EMPLOYEE_NOT_FOUND":
-      return "Employee not found.";
+      return source === "rfid"
+        ? "RFID card is not registered with an employee."
+        : "Employee not found.";
     case "EMPLOYEE_INACTIVE":
-      return `${name} is inactive.`;
+      return "Employee is inactive.";
     case "MESS_NOT_ELIGIBLE":
-      return `${name} is not eligible for mess service.`;
+      return "Employee is not eligible for mess services.";
     case "NO_ACTIVE_MEAL":
       return "No meal is currently being served.";
     case "MEAL_RATE_NOT_CONFIGURED":
@@ -43,7 +45,7 @@ function declineMessage(reason, employee, meal) {
     case "MEAL_ALREADY_TAKEN":
       return `${name} has already received ${meal ? meal.mealName : "this meal"} today.`;
     case "INSUFFICIENT_BALANCE":
-      return `${name} has insufficient mess balance.`;
+      return "Insufficient mess balance.";
     default:
       return reason;
   }
@@ -67,6 +69,12 @@ function getLastEvent() {
 function lookupEmployee(database, source, identifier) {
   if (source === "face") {
     return employeeService.findByFaceDeviceId(identifier, database);
+  }
+  if (source === "rfid") {
+    return (
+      employeeService.findByRfidUid(identifier, database) ||
+      employeeService.findByFaceDeviceId(identifier, database)
+    );
   }
   if (source === "qr") {
     return employeeService.findByQrCode(identifier, database);
@@ -314,7 +322,7 @@ function createProcessor(database, processorOptions = {}) {
 
       if (!employee) {
         return declined("EMPLOYEE_NOT_FOUND", {
-          message: declineMessage("EMPLOYEE_NOT_FOUND"),
+          message: declineMessage("EMPLOYEE_NOT_FOUND", null, null, source),
           identifier,
           source,
         });
@@ -322,7 +330,7 @@ function createProcessor(database, processorOptions = {}) {
 
       if (!employee.isActive) {
         return declined("EMPLOYEE_INACTIVE", {
-          message: declineMessage("EMPLOYEE_INACTIVE", employee),
+          message: declineMessage("EMPLOYEE_INACTIVE", employee, null, source),
           employee: employeeService.toPublicEmployee(employee),
           source,
         });
@@ -330,7 +338,7 @@ function createProcessor(database, processorOptions = {}) {
 
       if (!employee.messEligible) {
         return declined("MESS_NOT_ELIGIBLE", {
-          message: declineMessage("MESS_NOT_ELIGIBLE", employee),
+          message: declineMessage("MESS_NOT_ELIGIBLE", employee, null, source),
           employee: employeeService.toPublicEmployee(employee),
           source,
         });
@@ -394,7 +402,7 @@ function createProcessor(database, processorOptions = {}) {
 
       if (!Number.isFinite(balanceBefore) || balanceBefore < totalAmount) {
         return declined("INSUFFICIENT_BALANCE", {
-          message: declineMessage("INSUFFICIENT_BALANCE", employee),
+          message: declineMessage("INSUFFICIENT_BALANCE", employee, null, source),
           employee: employeeService.toPublicEmployee(lockedEmployee || employee),
           currentBalance: Number.isFinite(balanceBefore) ? balanceBefore : 0,
           requiredAmount: totalAmount,
@@ -410,7 +418,7 @@ function createProcessor(database, processorOptions = {}) {
       const balanceAfter = Number((balanceBefore - totalAmount).toFixed(2));
       if (balanceAfter < 0) {
         return declined("INSUFFICIENT_BALANCE", {
-          message: declineMessage("INSUFFICIENT_BALANCE", employee),
+          message: declineMessage("INSUFFICIENT_BALANCE", employee, null, source),
           employee: employeeService.toPublicEmployee(lockedEmployee || employee),
           currentBalance: balanceBefore,
           requiredAmount: totalAmount,

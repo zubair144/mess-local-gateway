@@ -24,6 +24,9 @@ function displaySource(source) {
   if (value === "face") {
     return "FACE";
   }
+  if (value === "rfid") {
+    return "RFID";
+  }
   if (value === "qr") {
     return "QR";
   }

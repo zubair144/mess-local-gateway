@@ -13,10 +13,10 @@ function registerMealRoutes(app) {
       });
     }
 
-    if (!["qr", "face", "manual", "manual-test"].includes(method)) {
+    if (!["qr", "rfid", "face", "manual", "manual-test"].includes(method)) {
       return res.status(400).json({
         success: false,
-        message: "method must be qr, face, manual, or manual-test.",
+        message: "method must be rfid, face, manual, or manual-test.",
       });
     }
 
@@ -71,6 +71,39 @@ function registerMealRoutes(app) {
     }
   });
 
+  app.post("/api/meal/rfid", async (req, res) => {
+    const { identifier, print = true } = req.body || {};
+
+    if (!identifier) {
+      return res.status(400).json({
+        success: false,
+        message: "identifier is required.",
+      });
+    }
+
+    try {
+      const result = await hardware.rfid.handleRfidScan(identifier, {
+        skipPrint: print === false,
+        verificationOnly: req.body && req.body.verificationOnly === true,
+      });
+
+      res.json({
+        success: Boolean(
+          (result.mealResult && result.mealResult.success) ||
+          (result.verificationSession && result.verificationSession.ok)
+        ),
+        printed: Boolean(result.printed),
+        ...result,
+      });
+    } catch (err) {
+      logger.error("RFID", err.message || err);
+      res.status(500).json({
+        success: false,
+        message: err.message || "RFID meal processing failed",
+      });
+    }
+  });
+
   app.post("/api/meal/qr", async (req, res) => {
     const { identifier, print = true } = req.body || {};
 
@@ -82,7 +115,7 @@ function registerMealRoutes(app) {
     }
 
     try {
-      const result = await hardware.qr.handleQrScan(identifier, {
+      const result = await hardware.rfid.handleRfidScan(identifier, {
         skipPrint: print === false,
       });
 
@@ -92,10 +125,10 @@ function registerMealRoutes(app) {
         ...result,
       });
     } catch (err) {
-      logger.error("QR", err.message || err);
+      logger.error("RFID", err.message || err);
       res.status(500).json({
         success: false,
-        message: err.message || "QR meal processing failed",
+        message: err.message || "RFID meal processing failed",
       });
     }
   });

@@ -234,6 +234,7 @@ function migrateExistingColumns(db) {
   addColumnIfMissing(db, "employees", "cloud_balance", "REAL");
   addColumnIfMissing(db, "employees", "department", "TEXT");
   addColumnIfMissing(db, "employees", "face_template_id", "TEXT");
+  addColumnIfMissing(db, "employees", "rfid_uid", "TEXT");
 
   db.exec(`
     UPDATE employees
@@ -430,6 +431,12 @@ function applyIndexes(db) {
     CREATE UNIQUE INDEX IF NOT EXISTS idx_employees_face_device_user_id
     ON employees(face_device_user_id)
     WHERE face_device_user_id IS NOT NULL AND TRIM(face_device_user_id) != '';
+  `);
+
+  db.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_employees_rfid_uid
+    ON employees(rfid_uid)
+    WHERE rfid_uid IS NOT NULL AND TRIM(rfid_uid) != '';
   `);
 
   db.exec(`

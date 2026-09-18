@@ -12,6 +12,7 @@ const {
   resetAndPull,
   getSyncStatus,
 } = require("../services/sync-service");
+const identityService = require("../services/identity-service");
 const logger = require("../logger");
 
 async function handleForceFullPull(req, res) {
@@ -180,6 +181,8 @@ function registerLocalRoutes(app) {
       body.identifier ||
       body.employeeCode ||
       body.qrCode ||
+      body.rfidUid ||
+      body.rfidCardUid ||
       body.faceDeviceUserId;
 
     if (!identifier) {
@@ -335,6 +338,54 @@ function registerLocalRoutes(app) {
         message: err.message || "Reset and pull failed",
       });
     }
+  });
+
+  app.post("/api/local/identity/arm", (req, res) => {
+    const body = req.body || {};
+    res.json({
+      success: true,
+      ...identityService.armVerification({
+        terminalId: body.terminalId,
+        ttlMs: body.ttlMs,
+      }),
+    });
+  });
+
+  app.post("/api/local/identity/disarm", (_req, res) => {
+    res.json({ success: true, ...identityService.disarmVerification() });
+  });
+
+  app.post("/api/local/identity/resolve", (req, res) => {
+    const body = req.body || {};
+    const type = String(body.type || body.source || "rfid").toLowerCase();
+    const identifier = body.identifier || body.rfidCardUid || body.faceDeviceUserId;
+    const result = identityService.createVerificationSession({
+      source: type,
+      identifier,
+      deviceId: body.deviceId || "pos",
+    });
+    if (!result.ok) {
+      return res.status(400).json(result);
+    }
+    res.json({ success: true, ...result });
+  });
+
+  app.get("/api/local/identity/pending", (_req, res) => {
+    const session = identityService.getLatestPending();
+    res.json({
+      success: true,
+      armed: identityService.isVerificationArmed(),
+      session: session || null,
+    });
+  });
+
+  app.post("/api/local/identity/consume", (req, res) => {
+    const id = req.body && req.body.verificationSessionId;
+    const result = identityService.consumeSession(id);
+    if (!result.ok) {
+      return res.status(400).json(result);
+    }
+    res.json({ success: true, ...result });
   });
 }
 

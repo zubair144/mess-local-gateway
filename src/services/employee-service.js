@@ -1,5 +1,6 @@
 const db = require("../db/database");
 const { hashQrToken, parseQrToken } = require("../cloud/qr-hash");
+const { normalizeRfidUid } = require("../utils/rfid");
 
 const EMPLOYEE_COLUMNS = `
   id,
@@ -11,6 +12,7 @@ const EMPLOYEE_COLUMNS = `
   qr_code,
   qr_token_hash,
   qr_status,
+  rfid_uid,
   face_device_user_id,
   face_template_id,
   is_active,
@@ -72,6 +74,25 @@ function findByFaceDeviceId(id, database = db) {
       SELECT ${EMPLOYEE_COLUMNS}
       FROM employees
       WHERE face_device_user_id = ?
+    `
+    )
+    .get(identifier);
+
+  return mapEmployee(row);
+}
+
+function findByRfidUid(uid, database = db) {
+  const identifier = normalizeRfidUid(uid);
+  if (!identifier) {
+    return null;
+  }
+
+  const row = database
+    .prepare(
+      `
+      SELECT ${EMPLOYEE_COLUMNS}
+      FROM employees
+      WHERE rfid_uid = ?
     `
     )
     .get(identifier);
@@ -165,6 +186,10 @@ function findById(id, database = db) {
 }
 
 function findByIdentifier(identifier, method, database = db) {
+  if (method === "rfid") {
+    return findByRfidUid(identifier, database) || findByFaceDeviceId(identifier, database);
+  }
+
   if (method === "qr") {
     return findByQrCode(identifier, database);
   }
@@ -189,6 +214,7 @@ function listEmployees({ q } = {}, database = db) {
       WHERE employee_code LIKE ?
         OR name LIKE ?
         OR IFNULL(qr_code, '') LIKE ?
+        OR IFNULL(rfid_uid, '') LIKE ?
         OR IFNULL(face_device_user_id, '') LIKE ?
       ORDER BY name ASC
     `
@@ -199,7 +225,7 @@ function listEmployees({ q } = {}, database = db) {
     `;
 
   const params = search
-    ? [`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`]
+    ? [`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`]
     : [];
 
   return database.prepare(sql).all(...params).map(mapEmployee);
@@ -218,6 +244,8 @@ function toPublicEmployee(employee) {
     departmentId: employee.department_id,
     department: employee.department || employee.department_id || "",
     qrCode: employee.qr_code,
+    rfidUid: employee.rfid_uid || "",
+    rfidCardUid: employee.rfid_uid || "",
     faceDeviceUserId: employee.face_device_user_id,
     isActive: Boolean(employee.isActive ?? employee.is_active),
     messEligible: Boolean(employee.messEligible ?? employee.mess_eligible),
@@ -236,6 +264,7 @@ function toPublicEmployee(employee) {
 module.exports = {
   findByFaceDeviceId,
   findByQrCode,
+  findByRfidUid,
   findByEmployeeCode,
   findById,
   findByIdentifier,

@@ -51,12 +51,14 @@ module.exports = {
   sqlitePath: path.resolve(PROJECT_ROOT, sqliteRelative),
 
   faceEnabled: envBool("FACE_ENABLED", true),
-  qrEnabled: envBool("QR_ENABLED", true),
+  qrEnabled: envBool("QR_ENABLED", envBool("RFID_ENABLED", true)),
+  rfidEnabled: envBool("RFID_ENABLED", envBool("QR_ENABLED", true)),
   printerEnabled: envBool("PRINTER_ENABLED", true),
   hardwareProcessMeals: envBool("HARDWARE_PROCESS_MEALS", true),
 
   faceDuplicateWindowMs: envInt("FACE_DUPLICATE_WINDOW_MS", 10000),
-  qrDuplicateWindowMs: envInt("QR_DUPLICATE_WINDOW_MS", 3000),
+  qrDuplicateWindowMs: envInt("QR_DUPLICATE_WINDOW_MS", envInt("RFID_DUPLICATE_WINDOW_MS", 1500)),
+  rfidDuplicateWindowMs: envInt("RFID_DUPLICATE_WINDOW_MS", envInt("QR_DUPLICATE_WINDOW_MS", 1500)),
 
   timezone: envString("TIMEZONE", "Asia/Karachi"),
   printDeclinedReceipts: envBool("PRINT_DECLINED_RECEIPTS", false),

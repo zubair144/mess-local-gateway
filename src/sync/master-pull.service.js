@@ -1,6 +1,7 @@
 const crypto = require("crypto");
 const defaultDb = require("../db/database");
 const logger = require("../logger");
+const { normalizeRfidUid } = require("../utils/rfid");
 const {
   getSyncVersion,
   markPullSuccess,
@@ -120,6 +121,23 @@ function clearDuplicateQrHash(database, qrTokenHash, keepId) {
     .run(qrTokenHash, keepId);
 }
 
+function clearDuplicateRfidUid(database, rfidUid, keepId) {
+  if (!rfidUid) {
+    return;
+  }
+
+  database
+    .prepare(
+      `
+      UPDATE employees
+      SET rfid_uid = NULL
+      WHERE rfid_uid = ?
+        AND id != ?
+    `
+    )
+    .run(rfidUid, keepId);
+}
+
 function applyEmployee(database, employee) {
   const cloudId = String(employee.cloudId || employee.id || "").trim();
   const employeeCode = String(employee.employeeCode || "").trim();
@@ -141,6 +159,7 @@ function applyEmployee(database, employee) {
       : 0;
   const qrTokenHash = String(employee.qrTokenHash || "").trim();
   const qrStatus = String(employee.qrStatus || "").trim() || null;
+  const rfidUid = normalizeRfidUid(employee.rfidCardUid || employee.cardId);
   const faceDeviceUserId = String(employee.faceDeviceUserId || "").trim();
   const faceTemplateId = String(employee.faceTemplateId || "").trim();
   const department = String(employee.department || "").trim();
@@ -165,6 +184,9 @@ function applyEmployee(database, employee) {
   if (qrTokenHash) {
     clearDuplicateQrHash(database, qrTokenHash, localId);
   }
+  if (rfidUid) {
+    clearDuplicateRfidUid(database, rfidUid, localId);
+  }
 
   if (existing) {
     database
@@ -180,6 +202,7 @@ function applyEmployee(database, employee) {
           qr_token_hash = ?,
           qr_status = ?,
           qr_code = CASE WHEN ? != '' THEN NULL ELSE qr_code END,
+          rfid_uid = ?,
           face_device_user_id = ?,
           face_template_id = ?,
           mess_eligible = ?,
@@ -203,6 +226,7 @@ function applyEmployee(database, employee) {
         qrTokenHash || null,
         qrStatus,
         qrTokenHash,
+        rfidUid || null,
         faceDeviceUserId || null,
         faceTemplateId || null,
         messEligible ? 1 : 0,
@@ -233,6 +257,7 @@ function applyEmployee(database, employee) {
         qr_code,
         qr_token_hash,
         qr_status,
+        rfid_uid,
         face_device_user_id,
         face_template_id,
         mess_eligible,
@@ -246,11 +271,11 @@ function applyEmployee(database, employee) {
         synced_at,
         sync_version
       ) VALUES (
-        ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+        ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
       )
     `
-    )
-    .run(
+      )
+      .run(
       localId,
       cloudId || null,
       employeeCode,
@@ -259,6 +284,7 @@ function applyEmployee(database, employee) {
       department,
       qrTokenHash || null,
       qrStatus,
+      rfidUid || null,
       faceDeviceUserId || null,
       faceTemplateId || null,
       messEligible ? 1 : 0,

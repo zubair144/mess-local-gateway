@@ -20,9 +20,9 @@ async function buildStatus({ probePrinter = false } = {}) {
   const faceOnline = !config.faceEnabled
     ? "disabled"
     : mapServiceState(hardwareStatus.face.ready);
-  const qrOnline = !config.qrEnabled
+  const rfidOnline = !config.rfidEnabled && !config.qrEnabled
     ? "disabled"
-    : mapServiceState(hardwareStatus.qr.ready);
+    : mapServiceState(hardwareStatus.rfid?.ready || hardwareStatus.qr?.ready);
   const printerOnline = !config.printerEnabled
     ? "disabled"
     : mapServiceState(hardwareStatus.printer.ready);
@@ -31,7 +31,8 @@ async function buildStatus({ probePrinter = false } = {}) {
     status: sqlite.connected ? "online" : "degraded",
     database: databaseOnline,
     face: faceOnline,
-    qr: qrOnline,
+    rfid: rfidOnline,
+    qr: rfidOnline,
     printer: printerOnline,
     gateway: "Mess Local Gateway",
     sqlite,

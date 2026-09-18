@@ -18,16 +18,17 @@ function seedBase(db) {
   db.prepare(
     `
     INSERT INTO employees (
-      id, employee_code, name, qr_code, face_device_user_id,
+      id, employee_code, name, qr_code, rfid_uid, face_device_user_id,
       mess_eligible, monthly_allowance, available_balance,
       active, is_active, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, 1, 15000, ?, 1, 1, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, 1, 15000, ?, 1, 1, ?, ?)
   `
   ).run(
     "emp-001",
     "EMP001",
     "Muhammad Ali",
     "EMP001-QR",
+    "04A1B2C3D4",
     "25",
     15000,
     now,
@@ -37,16 +38,17 @@ function seedBase(db) {
   db.prepare(
     `
     INSERT INTO employees (
-      id, employee_code, name, qr_code, face_device_user_id,
+      id, employee_code, name, qr_code, rfid_uid, face_device_user_id,
       mess_eligible, monthly_allowance, available_balance,
       active, is_active, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, 1, 15000, ?, 1, 1, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, 1, 15000, ?, 1, 1, ?, ?)
   `
   ).run(
     "emp-002",
     "EMP002",
     "Low Balance User",
     "EMP002-QR",
+    "04AABBCCDD",
     "999",
     200,
     now,
@@ -214,4 +216,40 @@ test("production QR hash lookup serves a meal without plaintext qr_code", () => 
 
   assert.equal(result.success, true);
   assert.equal(result.employee.employeeCode, "EMPHASH");
+});
+
+test("RFID uid lookup serves a meal without posting a QR transaction", () => {
+  const db = createTestDb();
+  seedBase(db);
+  const processor = createProcessor(db, { timeZone: "Asia/Karachi" });
+
+  const result = processor.processMealTransaction({
+    source: "rfid",
+    identifier: " 04a1b2c3d4 \n",
+  });
+
+  assert.equal(result.success, true);
+  assert.equal(result.source, "rfid");
+  assert.equal(result.employee.employeeCode, "EMP001");
+  assert.equal(result.balanceAfter, 14500);
+});
+
+test("unknown RFID is declined without writing ledger or balance changes", () => {
+  const db = createTestDb();
+  seedBase(db);
+  const processor = createProcessor(db, { timeZone: "Asia/Karachi" });
+  const before = db.prepare("SELECT available_balance FROM employees WHERE id = 'emp-001'").get();
+
+  const result = processor.processMealTransaction({
+    source: "rfid",
+    identifier: "UNKNOWNCARD",
+  });
+
+  assert.equal(result.success, false);
+  assert.equal(result.reason, "EMPLOYEE_NOT_FOUND");
+  assert.match(result.message, /RFID card is not registered/);
+  const after = db.prepare("SELECT available_balance FROM employees WHERE id = 'emp-001'").get();
+  assert.equal(after.available_balance, before.available_balance);
+  const ledger = db.prepare("SELECT COUNT(*) AS count FROM employee_ledger").get();
+  assert.equal(ledger.count, 0);
 });

@@ -135,7 +135,7 @@ async function getDashboardSnapshot({ probePrinter = false } = {}) {
       cloudSync: cloudSyncLabel,
       sqlite: sqlite.connected ? "ONLINE" : "OFFLINE",
       zkteco: hardwareStatus.face.ready ? "ONLINE" : "OFFLINE",
-      qrScanner: hardwareStatus.qr.ready ? "ONLINE" : "OFFLINE",
+      rfidReader: (hardwareStatus.rfid || hardwareStatus.qr).ready ? "ONLINE" : "OFFLINE",
       printer: hardwareStatus.printer.ready ? "ONLINE" : "OFFLINE",
     },
     cloud: {

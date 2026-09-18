@@ -10,6 +10,7 @@ function registerGatewayRoutes(app) {
           employee_code,
           name,
           qr_code,
+          rfid_uid,
           face_device_user_id,
           mess_eligible,
           monthly_allowance,
